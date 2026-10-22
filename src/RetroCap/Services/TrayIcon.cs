@@ -9,8 +9,9 @@ namespace RetroCap.Services
     public sealed class TrayIcon : IDisposable
     {
         private readonly Forms.NotifyIcon _icon;
+        private readonly Forms.ToolStripItem _record;
 
-        public TrayIcon(Action capture, Action open, Action exit)
+        public TrayIcon(Action capture, Action record, Action open, Action exit)
         {
             using var stream = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico")).Stream;
             var menu = new Forms.ContextMenuStrip
@@ -20,6 +21,7 @@ namespace RetroCap.Services
                 ShowImageMargin = false,
             };
             menu.Items.Add("Capture        Ctrl+Alt+A", null, (_, _) => capture());
+            _record = menu.Items.Add("Record Screen  Ctrl+Alt+Z", null, (_, _) => record());
             menu.Items.Add("Open RetroCap", null, (_, _) => open());
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add("Exit", null, (_, _) => exit());
@@ -33,6 +35,13 @@ namespace RetroCap.Services
             };
             _icon.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) open(); };
             _icon.DoubleClick += (_, _) => capture();
+        }
+
+        /// <summary>Switches the menu and tooltip between "record" and "stop recording".</summary>
+        public void SetRecording(bool recording)
+        {
+            _record.Text = recording ? "Stop Recording Ctrl+Alt+Z" : "Record Screen  Ctrl+Alt+Z";
+            _icon.Text = recording ? "RetroCap - Recording (Ctrl+Alt+Z to stop)" : "RetroCap - Ctrl+Alt+A to capture";
         }
 
         public void Dispose()

@@ -1,17 +1,18 @@
 using System;
+using System.Collections.Generic;
 using System.Windows.Interop;
 using RetroCap.Interop;
 
 namespace RetroCap.Services
 {
-    /// <summary>System-wide hotkey via RegisterHotKey on a message-only window.</summary>
+    /// <summary>System-wide hotkeys via RegisterHotKey on a message-only window.</summary>
     public sealed class HotkeyService : IDisposable
     {
-        private const int Id = 0x5243; // "RC"
         private readonly HwndSource _source;
-        private bool _registered;
+        private readonly HashSet<int> _registered = new();
 
-        public event EventHandler? Pressed;
+        /// <summary>Raised with the id passed to <see cref="Register"/>.</summary>
+        public event Action<int>? Pressed;
 
         public HotkeyService()
         {
@@ -20,33 +21,34 @@ namespace RetroCap.Services
             _source.AddHook(WndProc);
         }
 
-        /// <summary>Registers e.g. Ctrl+Alt+A. Returns false if another program already owns it.</summary>
-        public bool Register(uint modifiers, uint virtualKey)
+        /// <summary>Registers e.g. Ctrl+Alt+A under <paramref name="id"/>. Returns false if another program already owns it.</summary>
+        public bool Register(int id, uint modifiers, uint virtualKey)
         {
-            Unregister();
-            _registered = Native.RegisterHotKey(_source.Handle, Id, modifiers | Native.MOD_NOREPEAT, virtualKey);
-            return _registered;
+            Unregister(id);
+            if (!Native.RegisterHotKey(_source.Handle, id, modifiers | Native.MOD_NOREPEAT, virtualKey)) return false;
+            _registered.Add(id);
+            return true;
         }
 
-        public void Unregister()
+        public void Unregister(int id)
         {
-            if (_registered) Native.UnregisterHotKey(_source.Handle, Id);
-            _registered = false;
+            if (_registered.Remove(id)) Native.UnregisterHotKey(_source.Handle, id);
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (msg == Native.WM_HOTKEY && wParam.ToInt32() == Id)
+            if (msg == Native.WM_HOTKEY && _registered.Contains(wParam.ToInt32()))
             {
                 handled = true;
-                Pressed?.Invoke(this, EventArgs.Empty);
+                Pressed?.Invoke(wParam.ToInt32());
             }
             return IntPtr.Zero;
         }
 
         public void Dispose()
         {
-            Unregister();
+            foreach (var id in _registered) Native.UnregisterHotKey(_source.Handle, id);
+            _registered.Clear();
             _source.RemoveHook(WndProc);
             _source.Dispose();
         }

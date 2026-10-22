@@ -2,6 +2,7 @@
 
 A QQ-style screenshot and annotation tool for Windows 10 and 11, written in native .NET 8 (WPF).
 Press **Ctrl+Alt+A** anywhere, pick a region, mark it up, and copy it to the clipboard.
+Press **Ctrl+Alt+Z** to record a region of the screen to MP4 or GIF.
 The UI follows the [**Retro.Net design system**](https://github.com/owen800q/Retro.NET).
 
 
@@ -34,6 +35,16 @@ around other apps looks like Wine rather than Windows 10).
   **Pin to screen** (F3; drag to move, wheel to zoom, double-click to close).
   Optional auto-save of every copy to a folder.
 - Esc cancels. Right-click backs out of the current selection.
+- **Screen recording** with Ctrl+Alt+Z (also the Record button and the tray menu):
+  pick a region the same way as for a screenshot, choose **MP4** (H.264, 30 fps; key V) or **GIF**
+  (10 fps; key G) and press Enter. A red frame marks the region and a small bar shows the elapsed
+  time; press Ctrl+Alt+Z again or click **Stop**. The file is saved to the save folder as
+  `Recording_yyyyMMdd_HHmmss.mp4` / `.gif` and put on the clipboard as a file, ready to paste into
+  a chat. The mouse cursor is included in the recording.
+  - MP4 uses the Windows Media Foundation H.264 encoder. Windows "N" editions need the Media
+    Feature Pack; use GIF otherwise.
+  - GIFs store only the part of each frame that changed, with a 256-colour palette per frame,
+    so screencasts of UI stay small. Photos and video in the region will look posterised.
 
 ## Download
 
@@ -48,8 +59,8 @@ dotnet publish src/RetroCap/RetroCap.csproj -c Release -r win-x64 -o dist
 dist\RetroCap.exe
 ```
 
-Command-line switches: `--tray` (start hidden in the notification area) and `--capture`
-(start a capture immediately).
+Command-line switches: `--tray` (start hidden in the notification area), `--capture`
+(start a capture immediately) and `--record` (start picking a region to record).
 
 ## Project layout
 
@@ -60,8 +71,14 @@ src/RetroCap/
   Capture/
     CaptureWindow.cs     full-screen overlay: selection, tools, output
     CaptureToolbar.xaml  floating SAP toolbar (tools, sizes, palette)
+    RecordToolbar.cs     format / Record toolbar shown in record mode
     Annotations.cs       rectangle / ellipse / arrow / pen / highlighter / mosaic / text
     Magnifier.cs         pixel loupe
+  Recording/
+    ScreenRecorder.cs    capture thread (GDI + cursor) feeding an encoder thread
+    Mp4Encoder.cs        H.264 MP4 via the Media Foundation sink writer
+    GifEncoder.cs        animated GIF: changed-rectangle frames, median-cut palette, LZW
+    RecordingOverlay.cs  red frame and Stop bar shown while recording
   Services/              screen capture, hotkey, clipboard/save, settings, tray icon
   Theme/
     Theme.xaml           Retro SAP GUI tokens and control styles for WPF

@@ -27,6 +27,13 @@ namespace RetroCap.Interop
         public static readonly IntPtr HWND_TOPMOST = new(-1);
         public const uint SWP_NOACTIVATE = 0x0010;
         public const uint SWP_SHOWWINDOW = 0x0040;
+        public const uint SWP_NOSIZE = 0x0001;
+        public const uint SWP_NOZORDER = 0x0004;
+
+        public const int WS_EX_TRANSPARENT = 0x00000020;
+        public const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+        public const int CURSOR_SHOWING = 0x00000001;
+        public const int DI_NORMAL = 0x0003;
 
         public const int SRCCOPY = 0x00CC0020;
         public const int CAPTUREBLT = 0x40000000;
@@ -41,6 +48,41 @@ namespace RetroCap.Interop
 
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT { public int X, Y; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct CURSORINFO
+        {
+            public int cbSize;
+            public int flags;
+            public IntPtr hCursor;
+            public POINT ptScreenPos;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct ICONINFO
+        {
+            public bool fIcon;
+            public int xHotspot;
+            public int yHotspot;
+            public IntPtr hbmMask;
+            public IntPtr hbmColor;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct BITMAPINFOHEADER
+        {
+            public int biSize;
+            public int biWidth;
+            public int biHeight;
+            public short biPlanes;
+            public short biBitCount;
+            public int biCompression;
+            public int biSizeImage;
+            public int biXPelsPerMeter;
+            public int biYPelsPerMeter;
+            public int biClrUsed;
+            public int biClrImportant;
+        }
 
         public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -103,6 +145,30 @@ namespace RetroCap.Interop
 
         [DllImport("gdi32.dll")]
         public static extern bool BitBlt(IntPtr hdcDest, int x, int y, int w, int h, IntPtr hdcSrc, int sx, int sy, int rop);
+
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateDIBSection(IntPtr hdc, ref BITMAPINFOHEADER bmi, uint usage, out IntPtr bits, IntPtr section, uint offset);
+
+        [DllImport("user32.dll")]
+        public static extern bool GetCursorInfo(ref CURSORINFO pci);
+
+        [DllImport("user32.dll")]
+        public static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO piconinfo);
+
+        [DllImport("user32.dll")]
+        public static extern bool DrawIconEx(IntPtr hdc, int x, int y, IntPtr hIcon, int cx, int cy, int step, IntPtr brush, int flags);
+
+        [DllImport("user32.dll")]
+        public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongW")]
+        public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int value);
+
+        [DllImport("winmm.dll")]
+        public static extern uint timeBeginPeriod(uint period);
+
+        [DllImport("winmm.dll")]
+        public static extern uint timeEndPeriod(uint period);
 
         [DllImport("gdi32.dll")]
         public static extern bool DeleteDC(IntPtr hdc);
