@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using RetroCap.Interop;
+using RetroCap.Recording;
 using RetroCap.Services;
 using RetroCap.Ui;
 
@@ -18,7 +19,8 @@ namespace RetroCap.Capture
     /// <summary>
     /// Full-virtual-desktop overlay shown on Ctrl+Alt+A. Displays a frozen snapshot of the screen,
     /// lets the user pick a region (drag, or click a highlighted window), annotate it, and then
-    /// copy / save / pin the result.
+    /// copy / save / pin the result. In record mode (Ctrl+Alt+Z) it only picks the region and a
+    /// video format, then hands them to the recorder.
     ///
     /// All overlay content lives in <see cref="_root"/>, whose units are physical pixels of the
     /// snapshot; chrome (toolbar, magnifier, labels) is scaled back up by the monitor DPI.
@@ -49,6 +51,7 @@ namespace RetroCap.Capture
         private readonly TextBlock _sizeText;
         private readonly Magnifier _magnifier;
         private readonly CaptureToolbar _toolbar = new();
+        private readonly RecordToolbar? _recordBar;
         private TextBox? _editor;
 
         private Phase _phase = Phase.Selecting;
@@ -68,11 +71,14 @@ namespace RetroCap.Capture
         public event Action<BitmapSource, Rect>? PinRequested;
         /// <summary>Raised after a copy/save with a short status message.</summary>
         public event Action<string>? Completed;
+        /// <summary>Record mode: raised with the region (virtual-screen pixels) and format; the window then closes.</summary>
+        public event Action<Int32Rect, RecordFormat>? RecordRequested;
 
-        public CaptureWindow(ScreenSnapshot shot, Settings settings)
+        public CaptureWindow(ScreenSnapshot shot, Settings settings, bool record = false)
         {
             _shot = shot;
             _settings = settings;
+            if (record) _recordBar = new RecordToolbar(settings.RecordFormat);
 
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
@@ -82,7 +88,7 @@ namespace RetroCap.Capture
             Cursor = Cursors.Cross;
             WindowStartupLocation = WindowStartupLocation.Manual;
             UseLayoutRounding = false;
-            Title = "RetroCap Capture";
+            Title = record ? "RetroCap Record" : "RetroCap Capture";
             FontFamily = (FontFamily)Application.Current.FindResource("Sap.Font");
 
             var b = shot.Bounds;
@@ -129,8 +135,8 @@ namespace RetroCap.Capture
             _magnifier = new Magnifier(shot) { IsHitTestVisible = false };
             _root.Children.Add(_magnifier);
 
-            _toolbar.Visibility = Visibility.Collapsed;
-            _root.Children.Add(_toolbar);
+            Bar.Visibility = Visibility.Collapsed;
+            _root.Children.Add(Bar);
             WireToolbar();
 
             Content = _root;
@@ -165,7 +171,7 @@ namespace RetroCap.Capture
             _dpiY = dpi.DpiScaleY;
             _root.LayoutTransform = new ScaleTransform(1 / _dpiX, 1 / _dpiY);
             var chrome = new ScaleTransform(_dpiX, _dpiY);
-            _toolbar.LayoutTransform = chrome;
+            Bar.LayoutTransform = chrome;
             _sizeLabel.LayoutTransform = chrome;
             _magnifier.LayoutTransform = chrome;
         }
@@ -194,7 +200,8 @@ namespace RetroCap.Capture
 
             if (e.ClickCount == 2 && _phase == Phase.Editing && _sel.Contains(p) && _tool is Tool.None)
             {
-                FinishCopy();
+                if (IsRecordMode) FinishRecord();
+                else FinishCopy();
                 return;
             }
 
@@ -243,7 +250,7 @@ namespace RetroCap.Capture
             _drag = kind;
             _handleAtDown = handle;
             _selAtDown = _sel;
-            _toolbar.Visibility = Visibility.Collapsed;
+            Bar.Visibility = Visibility.Collapsed;
             CaptureMouse();
         }
 
@@ -346,6 +353,23 @@ namespace RetroCap.Capture
             }
 
             bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+            if (_recordBar != null)
+            {
+                switch (e.Key)
+                {
+                    case Key.Escape: Close(); break;
+                    case Key.Enter: if (_phase == Phase.Editing) FinishRecord(); break;
+                    case Key.V: _recordBar.SetFormat(RecordFormat.Mp4); break;
+                    case Key.G: _recordBar.SetFormat(RecordFormat.Gif); break;
+                    case Key.Left: Nudge(-1, 0); break;
+                    case Key.Right: Nudge(1, 0); break;
+                    case Key.Up: Nudge(0, -1); break;
+                    case Key.Down: Nudge(0, 1); break;
+                    default: return;
+                }
+                e.Handled = true;
+                return;
+            }
             switch (e.Key)
             {
                 case Key.Escape: Close(); break;
@@ -402,7 +426,7 @@ namespace RetroCap.Capture
             _magnifier.Visibility = Visibility.Collapsed;
             UpdateMask();
             SyncToolbar();
-            _toolbar.Visibility = Visibility.Visible;
+            Bar.Visibility = Visibility.Visible;
             PlaceToolbar();
         }
 
@@ -413,7 +437,7 @@ namespace RetroCap.Capture
             _tool = Tool.None;
             _layer.Items.Clear();
             _layer.InvalidateVisual();
-            _toolbar.Visibility = Visibility.Collapsed;
+            Bar.Visibility = Visibility.Collapsed;
             var p = Mouse.GetPosition(_root);
             UpdateHover(p);
             _magnifier.Visibility = Visibility.Visible;
@@ -527,9 +551,10 @@ namespace RetroCap.Capture
         /// <summary>Puts the toolbar under the selection (right-aligned), else above it, else inside.</summary>
         private void PlaceToolbar()
         {
-            _toolbar.UpdateLayout();
-            _toolbar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            double w = _toolbar.DesiredSize.Width, h = _toolbar.DesiredSize.Height; // includes DPI LayoutTransform
+            var bar = Bar;
+            bar.UpdateLayout();
+            bar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double w = bar.DesiredSize.Width, h = bar.DesiredSize.Height; // includes DPI LayoutTransform
             const double gap = 6;
             double x = Math.Clamp(_sel.Right - w, 0, Math.Max(0, _root.Width - w));
             double y = _sel.Bottom + gap + 2;
@@ -538,17 +563,18 @@ namespace RetroCap.Capture
                 y = _sel.Top - h - gap - 2;
                 if (y < 0) y = Math.Max(0, _sel.Bottom - h - gap);
             }
-            Canvas.SetLeft(_toolbar, Math.Round(x));
-            Canvas.SetTop(_toolbar, Math.Round(y));
+            Canvas.SetLeft(bar, Math.Round(x));
+            Canvas.SetTop(bar, Math.Round(y));
         }
 
         private bool IsOverToolbar(MouseEventArgs e)
         {
-            if (_toolbar.Visibility != Visibility.Visible) return false;
+            var bar = Bar;
+            if (bar.Visibility != Visibility.Visible) return false;
             var hit = e.OriginalSource as DependencyObject;
             while (hit != null)
             {
-                if (hit == _toolbar) return true;
+                if (hit == bar) return true;
                 hit = hit is Visual || hit is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(hit) : LogicalTreeHelper.GetParent(hit);
             }
             return false;
@@ -562,8 +588,19 @@ namespace RetroCap.Capture
         // Tools & annotations
         // =====================================================================
 
+        /// <summary>The toolbar for the current mode.</summary>
+        private FrameworkElement Bar => _recordBar ?? (FrameworkElement)_toolbar;
+
+        private bool IsRecordMode => _recordBar != null;
+
         private void WireToolbar()
         {
+            if (_recordBar != null)
+            {
+                _recordBar.CancelRequested += Close;
+                _recordBar.RecordRequested += FinishRecord;
+                return;
+            }
             _toolbar.ToolSelected += SelectTool;
             _toolbar.SizeSelected += i => { _sizeIndex[_tool] = i; SyncToolbar(); };
             _toolbar.ColorSelected += c =>
@@ -581,7 +618,7 @@ namespace RetroCap.Capture
 
         private void SelectTool(Tool tool)
         {
-            if (_phase != Phase.Editing) return;
+            if (_phase != Phase.Editing || IsRecordMode) return;
             if (_editor != null) CommitText();
             _tool = _tool == tool ? Tool.None : tool;
             SyncToolbar();
@@ -795,6 +832,17 @@ namespace RetroCap.Capture
             var img = Render();
             var at = new Rect(_sel.X + _shot.Bounds.X, _sel.Y + _shot.Bounds.Y, _sel.Width, _sel.Height);
             PinRequested?.Invoke(img, at);
+            Close();
+        }
+
+        private void FinishRecord()
+        {
+            if (_recordBar == null || _sel.IsEmpty) return;
+            var r = Snap(_sel);
+            var region = new Int32Rect((int)r.X + _shot.Bounds.X, (int)r.Y + _shot.Bounds.Y, (int)r.Width, (int)r.Height);
+            var format = _recordBar.Format;
+            Hide();
+            RecordRequested?.Invoke(region, format);
             Close();
         }
 

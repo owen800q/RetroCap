@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using RetroCap.Recording;
 
 namespace RetroCap.Services
 {
@@ -11,6 +13,9 @@ namespace RetroCap.Services
         public bool AutoSave { get; set; }
         public bool HideWindowOnCapture { get; set; } = true;
         public bool StartWithWindows { get; set; }
+        /// <summary>Last format picked for Ctrl+Alt+Z screen recording.</summary>
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public RecordFormat RecordFormat { get; set; } = RecordFormat.Mp4;
 
         private static string FilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RetroCap", "settings.json");

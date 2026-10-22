@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using RetroCap.Recording;
 using RetroCap.Services;
 using RetroCap.Ui;
 
@@ -17,6 +18,7 @@ namespace RetroCap
 
         public event Action? CaptureRequested;
         public event Action? DelayedCaptureRequested;
+        public event Action? RecordRequested;
         public event Action? ExitRequested;
 
         public MainWindow(Settings settings)
@@ -28,10 +30,12 @@ namespace RetroCap
             AutoSaveCheck.IsChecked = settings.AutoSave;
             HideCheck.IsChecked = settings.HideWindowOnCapture;
             StartupCheck.IsChecked = settings.StartWithWindows;
+            GifCheck.IsChecked = settings.RecordFormat == RecordFormat.Gif;
 
             CaptureButton.Click += (_, _) => CaptureRequested?.Invoke();
             CaptureNowButton.Click += (_, _) => CaptureRequested?.Invoke();
             DelayButton.Click += (_, _) => DelayedCaptureRequested?.Invoke();
+            RecordButton.Click += (_, _) => RecordRequested?.Invoke();
             HideButton.Click += (_, _) => Hide();
             ExitButton.Click += (_, _) => ExitRequested?.Invoke();
             OpenFolderButton.Click += (_, _) => OpenFolder();
@@ -39,6 +43,11 @@ namespace RetroCap
 
             FolderBox.LostFocus += (_, _) => { _settings.SaveFolder = FolderBox.Text.Trim(); _settings.Save(); };
             AutoSaveCheck.Click += (_, _) => { _settings.AutoSave = AutoSaveCheck.IsChecked == true; _settings.Save(); };
+            GifCheck.Click += (_, _) =>
+            {
+                _settings.RecordFormat = GifCheck.IsChecked == true ? RecordFormat.Gif : RecordFormat.Mp4;
+                _settings.Save();
+            };
             HideCheck.Click += (_, _) => { _settings.HideWindowOnCapture = HideCheck.IsChecked == true; _settings.Save(); };
             StartupCheck.Click += (_, _) =>
             {
@@ -50,13 +59,31 @@ namespace RetroCap
 
         public void SetStatus(string text) => StatusText.Text = text;
 
-        public void SetHotkeyState(bool registered)
+        public void SetHotkeyState(bool capture, bool record)
         {
-            HotkeyTagText.Text = registered ? "Registered" : "In use by another program";
-            HotkeyTag.Background = (System.Windows.Media.Brush)FindResource(registered ? "Sap.StatusSuccessBg" : "Sap.StatusWarningBg");
-            HotkeyTag.BorderBrush = (System.Windows.Media.Brush)FindResource(registered ? "Sap.StatusSuccess" : "Sap.StatusError");
-            if (!registered)
+            SetTag(HotkeyTag, HotkeyTagText, capture);
+            SetTag(RecordHotkeyTag, RecordHotkeyTagText, record);
+            if (!capture)
                 HintText.Text = "Ctrl+Alt+A is taken (QQ/WeChat?). Use New Capture or the tray icon.";
+            else if (!record)
+                HintText.Text = "Ctrl+Alt+Z is taken by another program. Use Record or the tray icon.";
+        }
+
+        private void SetTag(System.Windows.Controls.Border tag, System.Windows.Controls.TextBlock text, bool registered)
+        {
+            text.Text = registered ? "Registered" : "In use by another program";
+            tag.Background = (System.Windows.Media.Brush)FindResource(registered ? "Sap.StatusSuccessBg" : "Sap.StatusWarningBg");
+            tag.BorderBrush = (System.Windows.Media.Brush)FindResource(registered ? "Sap.StatusSuccess" : "Sap.StatusError");
+        }
+
+        public void SetRecordFormat(RecordFormat format) => GifCheck.IsChecked = format == RecordFormat.Gif;
+
+        /// <summary>Turns the Record toolbar button into Stop while a recording runs.</summary>
+        public void SetRecording(bool recording)
+        {
+            RecordButtonText.Text = recording ? "Stop" : "Record";
+            RecordButton.ToolTip = recording ? "Stop Recording  (Ctrl+Alt+Z)" : "Record Screen  (Ctrl+Alt+Z)";
+            RecordGlyph.Visibility = recording ? Visibility.Collapsed : Visibility.Visible;
         }
 
         private void Browse()

@@ -22,6 +22,12 @@
             <TextBlock Text="Delay 3s" Margin="4,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
         </Button>
+        <Button x:Name="RecordButton" Style="{StaticResource Sap.ToolButton}" Padding="5,2" ToolTip="Record Screen  (Ctrl+Alt+Z)">
+          <StackPanel Orientation="Horizontal">
+            <Ellipse x:Name="RecordGlyph" Width="10" Height="10" Fill="{StaticResource Sap.StatusError}" Stroke="Black" StrokeThickness="1" VerticalAlignment="Center"/>
+            <TextBlock x:Name="RecordButtonText" Text="Record" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
         <Border Style="{StaticResource Sap.ToolSeparator}"/>
         <Button x:Name="OpenFolderButton" Style="{StaticResource Sap.ToolButton}" ToolTip="Open Save Folder">
           <Image Source="{StaticResource Icon.folder}" Style="{StaticResource Sap.Icon}"/>
@@ -45,7 +51,8 @@
       <Border Background="{StaticResource Sap.StatusInfoBg}" BorderBrush="{StaticResource Sap.StatusInfo}" BorderThickness="1" Padding="6,3" Margin="0,0,0,6">
         <StackPanel Orientation="Horizontal">
           <Image Source="{StaticResource Icon.info}" Style="{StaticResource Sap.Icon}" Width="14" Height="14"/>
-          <TextBlock x:Name="HintText" Margin="6,0,0,0" VerticalAlignment="Center" Text="Press Ctrl+Alt+A in any application to capture the screen."/>
+          <TextBlock x:Name="HintText" Margin="6,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" Width="370"
+                     Text="Press Ctrl+Alt+A to capture the screen, Ctrl+Alt+Z to record it."/>
         </StackPanel>
       </Border>
 
@@ -56,11 +63,21 @@
             <ColumnDefinition Width="120"/>
             <ColumnDefinition Width="*"/>
           </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
           <TextBlock Text="Capture:" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
           <TextBox Grid.Column="1" Style="{StaticResource Sap.TextBox}" Text="Ctrl+Alt+A" IsReadOnly="True" FontFamily="{StaticResource Sap.FontMono}"/>
           <Border x:Name="HotkeyTag" Grid.Column="2" Margin="6,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                   Background="{StaticResource Sap.StatusSuccessBg}" BorderBrush="{StaticResource Sap.StatusSuccess}" BorderThickness="1" Padding="6,1">
             <TextBlock x:Name="HotkeyTagText" Text="Registered" FontSize="10"/>
+          </Border>
+          <TextBlock Grid.Row="1" Text="Record:" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,6,0"/>
+          <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource Sap.TextBox}" Text="Ctrl+Alt+Z" IsReadOnly="True" FontFamily="{StaticResource Sap.FontMono}" Margin="0,6,0,0"/>
+          <Border x:Name="RecordHotkeyTag" Grid.Row="1" Grid.Column="2" Margin="6,6,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                  Background="{StaticResource Sap.StatusSuccessBg}" BorderBrush="{StaticResource Sap.StatusSuccess}" BorderThickness="1" Padding="6,1">
+            <TextBlock x:Name="RecordHotkeyTagText" Text="Registered" FontSize="10"/>
           </Border>
         </Grid>
       </HeaderedContentControl>
@@ -80,6 +97,9 @@
           <CheckBox x:Name="AutoSaveCheck" Style="{StaticResource Sap.CheckBox}" Margin="102,8,0,0"
                     Content="Also save a PNG to this folder on Copy"/>
           <TextBlock Text="File name: Screenshot_yyyyMMdd_HHmmss.png" Margin="119,2,0,0" FontSize="10" Foreground="{StaticResource Sap.FgMuted}"/>
+          <CheckBox x:Name="GifCheck" Style="{StaticResource Sap.CheckBox}" Margin="102,8,0,0"
+                    Content="Record animated GIF instead of MP4 video"/>
+          <TextBlock Text="Recordings: Recording_yyyyMMdd_HHmmss.mp4 / .gif" Margin="119,2,0,0" FontSize="10" Foreground="{StaticResource Sap.FgMuted}"/>
         </StackPanel>
       </HeaderedContentControl>
 
