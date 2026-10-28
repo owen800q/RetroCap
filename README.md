@@ -54,9 +54,13 @@ around other apps looks like Wine rather than Windows 10).
 
 ## Download
 
-Every push builds `RetroCap.exe` in GitHub Actions (**Actions → Build → Artifacts**).
-Pushing a tag like `v1.0.0` attaches `RetroCap-win-x64.zip` and `RetroCap-win-arm64.zip`
-to a GitHub Release. The exe is a self-contained single file, so you don't need to install .NET.
+Grab the latest `RetroCap-win-x64.zip` or `RetroCap-win-arm64.zip` from **Releases**.
+
+Every merge to `master` publishes a new release automatically: GitHub Actions takes the latest
+`vX.Y.Z` tag, bumps the patch number (v1.0.1 → v1.0.2), builds with that version and attaches both zips.
+To start a new major or minor version, push a tag yourself (for example `git tag v1.1.0 && git push origin v1.1.0`);
+the next merge then continues from it (v1.1.1). Pull requests are built but not released
+(**Actions → Build → Artifacts**). The exe is a self-contained single file, so you don't need to install .NET.
 
 ## Build locally
 
