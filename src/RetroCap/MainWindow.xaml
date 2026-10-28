@@ -106,7 +106,8 @@
       <HeaderedContentControl Header="Options" Style="{StaticResource Sap.Fieldset}" Margin="0,8,0,0">
         <StackPanel Margin="102,0,0,0">
           <CheckBox x:Name="HideCheck" Style="{StaticResource Sap.CheckBox}" Content="Hide this window while capturing"/>
-          <CheckBox x:Name="StartupCheck" Style="{StaticResource Sap.CheckBox}" Content="Start with Windows" Margin="0,6,0,0"/>
+          <CheckBox x:Name="StartupCheck" Style="{StaticResource Sap.CheckBox}" Content="Start automatically when I sign in to Windows" Margin="0,6,0,0"/>
+          <CheckBox x:Name="StartMinimizedCheck" Style="{StaticResource Sap.CheckBox}" Content="Start hidden in the notification area" Margin="17,6,0,0"/>
         </StackPanel>
       </HeaderedContentControl>
 

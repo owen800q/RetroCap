@@ -46,6 +46,12 @@ around other apps looks like Wine rather than Windows 10).
   - GIFs store only the part of each frame that changed, with a 256-colour palette per frame,
     so screencasts of UI stay small. Photos and video in the region will look posterised.
 
+- **Start automatically** when you sign in to Windows (Options → *Start automatically when I sign in
+  to Windows*). By default it starts hidden in the notification area; untick *Start hidden in the
+  notification area* to open the window instead. The entry lives under
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` and is refreshed on every launch, so it keeps
+  working if you move `RetroCap.exe`.
+
 ## Download
 
 Every push builds `RetroCap.exe` in GitHub Actions (**Actions → Build → Artifacts**).

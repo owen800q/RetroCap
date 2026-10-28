@@ -48,6 +48,9 @@ namespace RetroCap
             _wake = new EventWaitHandle(false, EventResetMode.AutoReset, InstanceName + ".Wake");
             new Thread(() => { while (_wake.WaitOne()) Dispatcher.BeginInvoke(ShowMain); }) { IsBackground = true }.Start();
 
+            // Keep the Windows startup entry pointing at this exe (it may have been moved or updated).
+            Autostart.Sync(_settings);
+
             _main = new MainWindow(_settings);
             MainWindow = _main;
             _main.CaptureRequested += () => StartCapture();
