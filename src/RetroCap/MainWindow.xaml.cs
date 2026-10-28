@@ -30,6 +30,8 @@ namespace RetroCap
             AutoSaveCheck.IsChecked = settings.AutoSave;
             HideCheck.IsChecked = settings.HideWindowOnCapture;
             StartupCheck.IsChecked = settings.StartWithWindows;
+            StartMinimizedCheck.IsChecked = settings.StartMinimized;
+            StartMinimizedCheck.IsEnabled = settings.StartWithWindows;
             GifCheck.IsChecked = settings.RecordFormat == RecordFormat.Gif;
 
             CaptureButton.Click += (_, _) => CaptureRequested?.Invoke();
@@ -52,9 +54,31 @@ namespace RetroCap
             StartupCheck.Click += (_, _) =>
             {
                 _settings.StartWithWindows = StartupCheck.IsChecked == true;
-                Autostart.Apply(_settings.StartWithWindows);
-                _settings.Save();
+                StartMinimizedCheck.IsEnabled = _settings.StartWithWindows;
+                ApplyAutostart();
             };
+            StartMinimizedCheck.Click += (_, _) =>
+            {
+                _settings.StartMinimized = StartMinimizedCheck.IsChecked == true;
+                ApplyAutostart();
+            };
+        }
+
+        private void ApplyAutostart()
+        {
+            if (Autostart.Apply(_settings.StartWithWindows, _settings.StartMinimized))
+            {
+                SetStatus(_settings.StartWithWindows ? "RetroCap will start when you sign in to Windows." : "RetroCap will no longer start with Windows.");
+            }
+            else
+            {
+                // Registry blocked (e.g. group policy): undo the change so the UI tells the truth.
+                _settings.StartWithWindows = Autostart.IsRegistered();
+                StartupCheck.IsChecked = _settings.StartWithWindows;
+                StartMinimizedCheck.IsEnabled = _settings.StartWithWindows;
+                SetStatus("Error: could not change the Windows startup entry.");
+            }
+            _settings.Save();
         }
 
         public void SetStatus(string text) => StatusText.Text = text;
