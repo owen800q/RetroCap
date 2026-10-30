@@ -20,7 +20,7 @@ jobs:
   # Works out the version to build and whether to publish a release.
   #   Push to master/main -> latest vX.Y.Z tag with the patch number bumped (v1.0 -> v1.0.1), released.
   #   Push of a tag vX.Y.Z -> that version, released (use this to bump major/minor).
-  #   Pull request / manual run -> version from the .csproj, not released.
+  #   Pull request / manual run -> same bumped version, built but not released.
   version:
     runs-on: ubuntu-latest
     outputs:
@@ -38,7 +38,9 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF_NAME#v}"
             release=true
-          elif [[ "$GITHUB_EVENT_NAME" == push && ( "$GITHUB_REF_NAME" == master || "$GITHUB_REF_NAME" == main ) ]]; then
+          else
+            # Next patch after the latest vX.Y.Z tag. Pull requests build with it too (so the
+            # release build path is exercised) but only pushes to master/main publish it.
             latest=$(git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+(\.[0-9]+){0,2}$' | head -n1 || true)
             if [[ -z "$latest" ]]; then
               version="1.0.0"
@@ -46,12 +48,12 @@ jobs:
               IFS=. read -r major minor patch <<< "${latest#v}"
               version="${major}.${minor:-0}.$(( ${patch:-0} + 1 ))"
             fi
-            release=true
-          else
-            version=""
             release=false
+            if [[ "$GITHUB_EVENT_NAME" == push && ( "$GITHUB_REF_NAME" == master || "$GITHUB_REF_NAME" == main ) ]]; then
+              release=true
+            fi
           fi
-          echo "Version: ${version:-<from csproj>}  release: $release"
+          echo "Version: $version  release: $release"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "release=$release" >> "$GITHUB_OUTPUT"
 
@@ -76,11 +78,10 @@ jobs:
           git diff --exit-code -- src/RetroCap/Theme/Icons.xaml
 
       - name: Publish (self-contained single file)
-        shell: pwsh
-        run: |
-          $version = '${{ needs.version.outputs.version }}'
-          $extra = if ($version) { @("-p:Version=$version") } else { @() }
-          dotnet publish src/RetroCap/RetroCap.csproj -c Release -r ${{ matrix.rid }} -o dist/${{ matrix.rid }} @extra
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: dotnet publish src/RetroCap/RetroCap.csproj -c Release -r ${{ matrix.rid }} -o dist/${{ matrix.rid }} ${VERSION:+-p:Version=$VERSION}
 
       - uses: actions/upload-artifact@v4
         with:
