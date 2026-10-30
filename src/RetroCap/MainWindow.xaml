@@ -41,7 +41,7 @@
     <!-- Status bar -->
     <ui:Bevel DockPanel.Dock="Bottom" Style="{StaticResource Sap.StatusBar}">
       <DockPanel>
-        <TextBlock DockPanel.Dock="Right" Text="RC01  v1.0.0" FontFamily="{StaticResource Sap.FontMono}" FontSize="10" Foreground="{StaticResource Sap.FgMuted}"/>
+        <TextBlock x:Name="VersionText" DockPanel.Dock="Right" Text="RC01" FontFamily="{StaticResource Sap.FontMono}" FontSize="10" Foreground="{StaticResource Sap.FgMuted}"/>
         <TextBlock x:Name="StatusText" Text="Ready." FontSize="10" TextTrimming="CharacterEllipsis"/>
       </DockPanel>
     </ui:Bevel>

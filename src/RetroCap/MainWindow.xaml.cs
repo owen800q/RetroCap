@@ -26,6 +26,10 @@ namespace RetroCap
             _settings = settings;
             InitializeComponent();
 
+            // Version comes from the build (CI passes -p:Version from the release tag).
+            var version = typeof(MainWindow).Assembly.GetName().Version;
+            if (version != null) VersionText.Text = $"RC01  v{version.ToString(3)}";
+
             FolderBox.Text = settings.SaveFolder;
             AutoSaveCheck.IsChecked = settings.AutoSave;
             HideCheck.IsChecked = settings.HideWindowOnCapture;
